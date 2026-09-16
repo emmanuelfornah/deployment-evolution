@@ -57,6 +57,21 @@ else touched.
 **Status:** evaluation pending at time of writing (`INSUFFICIENT_DATA`)
 — AWS Config's first compliance pass takes time after a rule is created.
 
+**Exported rule definition** (`aws configservice describe-config-rules
+--config-rule-names required-tags`, account ID redacted):
+
+```json
+{
+  "ConfigRuleName": "required-tags",
+  "ConfigRuleArn": "arn:aws:config:us-east-2:xxxxxxxx2833:config-rule/config-rule-xgrrgs",
+  "ConfigRuleId": "config-rule-xgrrgs",
+  "Source": { "Owner": "AWS", "SourceIdentifier": "REQUIRED_TAGS" },
+  "InputParameters": "{\"tag1Key\":\"Project\",\"tag2Key\":\"ManagedBy\"}",
+  "ConfigRuleState": "ACTIVE",
+  "EvaluationModes": [{ "Mode": "DETECTIVE" }]
+}
+```
+
 ## Remediation — a real one, not staged for this document
 
 **Finding:** AWS's own account-health recommendations flagged
