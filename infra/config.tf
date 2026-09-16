@@ -136,3 +136,21 @@ resource "aws_config_config_rule" "dynamodb_encrypted" {
   }
   depends_on = [aws_config_configuration_recorder.main]
 }
+
+# Parameterized against this project's real tag keys (versions.tf's
+# provider default_tags block), not generic defaults -- detects any
+# resource that slipped through without them. Detective only, like
+# every other rule here: it reports non-compliance, it can't block a
+# deploy, so adding it carries zero risk to anything live.
+resource "aws_config_config_rule" "required_tags" {
+  name = "required-tags"
+  source {
+    owner             = "AWS"
+    source_identifier = "REQUIRED_TAGS"
+  }
+  input_parameters = jsonencode({
+    tag1Key = "Project"
+    tag2Key = "ManagedBy"
+  })
+  depends_on = [aws_config_configuration_recorder.main]
+}
