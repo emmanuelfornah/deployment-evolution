@@ -18,18 +18,6 @@ access is through SSM Session Manager only. Outbound traffic from the
 app tier leaves through a NAT gateway. Phase 1 (CodeCommit → EKS,
 greyed out at the bottom) was built, verified and torn down.
 
-### Deployment pipeline
-
-![CI/CD pipeline and blue/green deployment](screenshots/architecture/ec2-bluegreen-pipeline-architecture.webp)
-
-Every push to GitHub runs CodePipeline: CodeBuild runs the unit tests,
-a second CodeBuild builds the ARM64 Docker image and pushes it to ECR
-(scan on push, immutable tags), then CodeDeploy rolls it out blue/green:
-**1.** create a new green Auto Scaling Group from the launch template
-and install the release, **2.** shift ALB traffic to green once it is
-healthy, **3.** drain the old blue group and delete it after a
-30-minute window, during which rollback is instant.
-
 ### Previous architecture (Phase 1: EKS)
 
 ![Phase 1 architecture: CodeCommit → CodePipeline → CodeBuild → EKS, with RDS and DynamoDB](screenshots/architecture/cicd-pipeline-eks-architecture.png)
@@ -50,6 +38,18 @@ Group across 2 AZs, a custom 3-tier VPC (public/app/data subnets), an
 Application Load Balancer with Route 53 + ACM in front of it, RDS with
 IAM database auth, and a full GitHub → CodePipeline → CodeBuild →
 CodeDeploy pipeline driving every deploy.
+
+### Deployment pipeline
+
+![CI/CD pipeline and blue/green deployment](screenshots/architecture/ec2-bluegreen-pipeline-architecture.webp)
+
+Every push to GitHub runs CodePipeline: CodeBuild runs the unit tests,
+a second CodeBuild builds the ARM64 Docker image and pushes it to ECR
+(scan on push, immutable tags), then CodeDeploy rolls it out blue/green:
+**1.** create a new green Auto Scaling Group from the launch template
+and install the release, **2.** shift ALB traffic to green once it is
+healthy, **3.** drain the old blue group and delete it after a
+30-minute window, during which rollback is instant.
 
 It got here by a real architecture decision, not by accident: the
 platform (Python/Django, Docker, Amazon RDS + DynamoDB) was **built
