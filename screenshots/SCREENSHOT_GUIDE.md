@@ -1,6 +1,6 @@
-# Screenshot Capture Guide
+# Screenshot Guide
 
-## Existing Screenshots (Phases 1–4)
+## Setup, Testing & CI (Phases 1–4)
 
 | # | Filename | What It Shows |
 |---|----------|---------------|
@@ -15,16 +15,22 @@
 | 09 | `09_codebuild_succeeded.png` | CodeBuild project — build succeeded |
 | 10 | `10_pipeline_all_stages_green.png` | CodePipeline — all stages green |
 
-## Screenshots to Capture — Troubleshooting & Rollbacks (Phase 5)
+## Troubleshooting, Rollbacks & ALB (Phase 5)
 
-| # | Filename | What to Capture |
-|---|----------|-----------------|
+| # | Filename | What It Shows |
+|---|----------|---------------|
 | 11 | `11_kubectl_pod_error_logs.png` | Terminal: `kubectl logs` showing the `wrongregion` endpoint error |
 | 12 | `12_region_fix_deployed.png` | Terminal: `kubectl apply` output + `curl` returning HTML after region fix |
-| 13 | `13_app_orange_background.png` | Browser: application with orange background color |
+| 13 | `13_base_template_orange_update.png` | Base template changed to the orange background |
 | 14 | `14_pipeline_orange_build_succeeded.png` | CodePipeline: all stages green after orange background push |
-| 15 | `15_app_cadetblue_background.png` | Browser: application with cadetblue background color |
-| 16 | `16_rollback_to_orange.png` | Terminal: `kubectl rollout undo` + browser showing orange restored |
+| 15 | `15_app_orange_background.png` | Browser: application with orange background color |
+| 16 | `16_pipeline_cadetblue_build_succeeded.png` | CodePipeline: all stages green after cadetblue background push |
+| 17 | `17_app_cadetblue_background.png` | Browser: application with cadetblue background color |
+| 18 | `18_rollout_history.png` | Terminal: `kubectl rollout history` for the deployment |
+| 19 | `19_rollback_to_orange.png` | Terminal: `kubectl rollout undo` + browser showing orange restored |
+| 20 | `20_eks_cluster_verified.png` | EKS cluster verified |
+| 21 | `21_alb_controller_installed.png` | AWS Load Balancer Controller installed |
+| 22 | `22_helm_installed.png` | Helm installed |
 
 ## Screenshots — EKS Deploy Pipeline & Rollback (Phase 6)
 
@@ -39,10 +45,28 @@ Located in `screenshots/deploy-pipeline/`:
 | 05 | `05-ui-cadetblue-deployed.png` | Application displaying cadetblue background |
 | 06 | `06-git-revert-rollback-to-original.png` | Git revert rollback — original theme restored |
 
-## Architecture Diagram
+## EC2 Blue/Green — Live (current)
+
+Located in `screenshots/ec2-live/`:
+
+| # | Filename | What It Shows |
+|---|----------|---------------|
+| 01 | `01_live_app_booking_form.png` | Live app booking form on the production domain |
+| 02 | `02_live_app_booking_confirmed.png` | Booking confirmed — live domain, valid HTTPS |
+| 03 | `03_pipeline_all_stages_green.png` | CodePipeline — all 4 stages green |
+| 04 | `04_codedeploy_bluegreen_traffic_shift.png` | CodeDeploy blue/green traffic shift |
+| 05 | `05_alb_listeners_https.png` | ALB listeners — HTTPS with HTTP redirect |
+| 06 | `06_codedeploy_deployment_history.png` | CodeDeploy deployment history |
+| 07 | `07_s3_buckets_overview.png` | S3 buckets overview |
+| 08 | `08_cost_explorer_actual_spend.png` | Cost Explorer — actual spend |
+
+## Architecture Diagrams
 
 Located in `screenshots/architecture/`:
 
 | Filename | What It Shows |
 |----------|---------------|
-| `cicd-pipeline-eks-architecture.png` | End-to-end CI/CD pipeline and EKS infrastructure architecture |
+| `ec2-full-infrastructure-architecture.webp` | Current infrastructure: 3-tier VPC, ALB, Auto Scaling Group, RDS, DynamoDB, SSM |
+| `ec2-bluegreen-pipeline-architecture.webp` | Current CI/CD pipeline and CodeDeploy blue/green rollout |
+| `ec2-bluegreen-pipeline-simple.png` | Simplified view of the current pipeline and blue/green flow |
+| `cicd-pipeline-eks-architecture.png` | Phase 1: end-to-end CI/CD pipeline and EKS infrastructure architecture |

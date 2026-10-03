@@ -166,9 +166,10 @@ drove the migration decision below.
 |---|---|
 | ![Coverage](screenshots/05_unit_test_coverage_100.png) | ![EKS verified](screenshots/20_eks_cluster_verified.png) |
 
-Full 30-image set (every CI/CD stage, both rollback methods, ALB
-migration): [`screenshots/`](screenshots/). EC2/blue-green phase
-evidence: [`screenshots/ec2-live/`](screenshots/ec2-live/).
+Full EKS-phase set (28 screenshots: every CI/CD stage, both rollback
+methods, ALB migration): [`screenshots/`](screenshots/). EC2/blue-green
+phase evidence (8 screenshots): [`screenshots/ec2-live/`](screenshots/ec2-live/).
+Every image is listed in the [screenshot guide](screenshots/SCREENSHOT_GUIDE.md).
 
 ## Why the migration (EKS → EC2)
 
