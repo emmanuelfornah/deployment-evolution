@@ -126,6 +126,13 @@ quietly broken.
 
 ## 🗄️ Phase 1 — EKS (built, verified, torn down)
 
+![Phase 1 architecture: CodeCommit → CodePipeline → CodeBuild → EKS, with RDS and DynamoDB](screenshots/architecture/cicd-pipeline-eks-architecture.png)
+
+The developer pushes to CodeCommit, which starts CodePipeline. CodeBuild
+runs the unit tests, builds the container image and pushes it to ECR,
+then a third CodeBuild project deploys the pods to EKS. The containers
+serve the app and use RDS and DynamoDB.
+
 The original build proved the same application on Kubernetes: AWS
 CodeCommit → CodePipeline → CodeBuild → `kubectl apply` → EKS, ALB
 ingress via the AWS Load Balancer Controller, a real production

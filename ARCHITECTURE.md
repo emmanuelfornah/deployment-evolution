@@ -101,9 +101,17 @@ flowchart LR
 
 ## Phase 1: EKS (built, verified, torn down)
 
-Before this design, the same app ran on Amazon EKS: CodeCommit →
-CodePipeline → CodeBuild → `kubectl apply`, with an ALB in front through
-the AWS Load Balancer Controller. It was torn down after verification;
-the [README](README.md) covers
-why, and [`screenshots/architecture/cicd-pipeline-eks-architecture.png`](screenshots/architecture/cicd-pipeline-eks-architecture.png)
-shows that architecture.
+![Phase 1 architecture: CodeCommit → CodePipeline → CodeBuild → EKS, with RDS and DynamoDB](screenshots/architecture/cicd-pipeline-eks-architecture.png)
+
+Before this design, the same app ran on Amazon EKS:
+
+1. The developer pushes code changes to **CodeCommit**.
+2. CodeCommit starts **CodePipeline**.
+3. A **CodeBuild** project runs the unit tests.
+4. A second CodeBuild project builds the container image and pushes it
+   to **ECR**.
+5. A third CodeBuild project deploys the pods to **EKS** (`kubectl apply`),
+   exposed through an ALB managed by the AWS Load Balancer Controller.
+
+The containers used the same RDS and DynamoDB data services. The cluster
+was torn down after verification; the [README](README.md) covers why.
