@@ -70,3 +70,12 @@ Located in `screenshots/architecture/`:
 | `ec2-bluegreen-pipeline-architecture.webp` | Current CI/CD pipeline and CodeDeploy blue/green rollout |
 | `ec2-bluegreen-pipeline-simple.png` | Simplified view of the current pipeline and blue/green flow |
 | `cicd-pipeline-eks-architecture.png` | Phase 1: end-to-end CI/CD pipeline and EKS infrastructure architecture |
+
+## Monitoring & Alerting (live)
+
+Located in `screenshots/monitoring/`. Built by [`infra/monitoring.tf`](../infra/monitoring.tf); see [`MONITORING.md`](../MONITORING.md).
+
+| # | Filename | What It Shows |
+|---|----------|---------------|
+| 01 | `01_sns_subscription_confirmed.png` | SNS email subscription to `appointments-alerts` confirmed |
+| 02 | `02_alarm_email_slo_slow_burn.png` | Alarm email: 6h error-budget burn-rate SLO alarm entering OK, with its metric-math expression |
