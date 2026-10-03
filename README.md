@@ -72,6 +72,35 @@ conversation, not this README).
 
 ## Architecture (current, EC2 phase)
 
+```mermaid
+flowchart LR
+    dev([Developer]) --> gh[GitHub]
+
+    subgraph pipeline [CodePipeline]
+        direction LR
+        src[Source<br/>CodeStar connection] --> test[Unit tests<br/>CodeBuild]
+        test --> build[ARM64 image build<br/>CodeBuild]
+        build --> deploy[CodeDeploy<br/>blue/green]
+    end
+
+    gh --> src
+    build -->|push image| ecr[(ECR)]
+    lt[Launch template] --> deploy
+
+    user([Visitor]) --> dns[Route 53<br/>+ ACM TLS] --> alb[ALB]
+
+    subgraph vpc [VPC: 2 AZs]
+        direction TB
+        alb -->|"2. shift traffic"| green[Green ASG, new<br/>EC2 t4g, AZ-a + AZ-b]
+        alb -.->|"3. drain, delete after 30 min"| blue[Blue ASG, old<br/>EC2 t4g, AZ-a + AZ-b]
+        green --> rds[(RDS MySQL<br/>IAM auth)]
+    end
+
+    deploy -->|"1. create and install"| green
+    ecr -.->|pull image| green
+    green --> ddb[(DynamoDB<br/>announcements)]
+```
+
 | Layer | Implementation |
 |---|---|
 | Compute | EC2 (Graviton/t4g), 2 instances across 2 AZs; CodeDeploy owns the Auto Scaling Group after first deploy (see note below) |
