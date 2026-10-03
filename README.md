@@ -91,6 +91,11 @@ the breadth and the general case it's an instance of.
 - Application Load Balancer, Route 53 alias record, ACM-issued TLS
 - No SSH anywhere — access via SSM Session Manager only, IMDSv2 enforced
 - Every IAM policy scoped to a specific resource ARN, least-privilege throughout
+- CloudWatch monitoring, all Terraform: SLOs of 99.9% availability and
+  p95 < 500 ms, 12 alarms (error-budget burn rate, latency, health,
+  database, instance memory/disk/CPU) emailing through SNS, a dashboard,
+  and cost-allocation tags on every resource. `terraform plan` reports
+  no drift. Full plan and evidence: [`MONITORING.md`](MONITORING.md)
 
 | Booking flow | Confirmed — live domain, valid HTTPS |
 |---|---|
@@ -103,6 +108,10 @@ the breadth and the general case it's an instance of.
 | ALB — HTTPS listener | Deployment history |
 |---|---|
 | ![ALB](screenshots/ec2-live/05_alb_listeners_https.png) | ![Deploy history](screenshots/ec2-live/06_codedeploy_deployment_history.png) |
+
+| Monitoring dashboard — SLO lines, all alarms OK | 12 alarms, actions enabled |
+|---|---|
+| ![Dashboard](screenshots/monitoring/08_dashboard_appointments.png) | ![Alarms](screenshots/monitoring/05_alarms_list_all_ok.png) |
 
 Getting from a clean `terraform apply` to this actually being live took
 7 distinct, real bugs — IAM permission gaps CloudTrail had to reveal,
@@ -199,14 +208,11 @@ Every image is listed in the [screenshot guide](screenshots/SCREENSHOT_GUIDE.md)
   written, then found to conflict with CodeDeploy's ASG-replacement
   behavior and disabled pending a Lambda-based redesign that can look
   up the current live ASG dynamically instead of naming it statically.
-- **Monitoring, SLOs and cost plan** — SLOs of 99.9% availability and
-  p95 < 500 ms, error-budget burn-rate alerts by email, a CloudWatch
-  dashboard (requests/sec, p95 latency, error rate) and cost-allocation
-  tags, all written in [`infra/monitoring.tf`](infra/monitoring.tf).
-  The full plan, including cost analysis and savings, is in
-  [`MONITORING.md`](MONITORING.md). The CloudWatch agent in the launch
-  template's user data adds per-instance memory, disk and CPU, with
-  alarms. Tracing is still to do.
+- **Distributed tracing** — AWS X-Ray through the OpenTelemetry Django
+  instrumentation, sampling 5% of requests; worth it once a second
+  service or an external API call appears (see
+  [`MONITORING.md`](MONITORING.md#traces)). Monitoring itself is live;
+  see above.
 
 ## Security posture
 

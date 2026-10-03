@@ -1,0 +1,5 @@
+# terraform plan after applying infra/monitoring.tf (AWS CloudShell, us-east-2, 2026-10-03)
+$ terraform plan -var="acm_certificate_arn=..." -var="alert_email=..." | tail -3
+
+Terraform has compared your real infrastructure against your configuration
+and found no differences, so no changes are needed.

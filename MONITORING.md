@@ -6,6 +6,10 @@ the monitoring below is Terraform in [`infra/monitoring.tf`](infra/monitoring.tf
 applied against the same remote state as the rest of the stack; nothing
 is created by hand in the console.
 
+**Status: ✅ live since 3 October 2026.** After apply, `terraform plan`
+reports no differences between the code and AWS. Evidence is in the
+appendix.
+
 ## 1. Monitoring architecture
 
 ```mermaid
@@ -257,15 +261,25 @@ Actions 1 and 2 together cut the list-price bill by about **44%**
 
 ## Appendix: evidence and exports
 
-| Evidence | Where |
+All in [`screenshots/monitoring/`](screenshots/monitoring/) unless noted.
+
+| Evidence | File |
 |---|---|
 | Deployment | [`screenshots/ec2-live/`](screenshots/ec2-live/): live app, CodeDeploy blue/green traffic shift, deploy history |
-| Dashboard | Screenshot of CloudWatch → Dashboards → `appointments` after apply |
-| Alert configuration | Screenshot of CloudWatch → Alarms filtered to `appointments-` |
-| Tagging and cost | Tag Editor filtered to `Project=appointments`; Cost Explorer grouped by tag |
-| Configuration | [`infra/monitoring.tf`](infra/monitoring.tf), [`infra/versions.tf`](infra/versions.tf) (tags), [`infra/variables.tf`](infra/variables.tf) (SLO targets) |
+| Dashboard (requests/sec, p95 vs SLO, error rate vs budget, alarm status) | [`08_dashboard_appointments.png`](screenshots/monitoring/08_dashboard_appointments.png) |
+| All 12 alarms OK, actions enabled | [`05_alarms_list_all_ok.png`](screenshots/monitoring/05_alarms_list_all_ok.png), [`06_cloudwatch_overview_alarms_by_service.png`](screenshots/monitoring/06_cloudwatch_overview_alarms_by_service.png) |
+| Alert definition (burn-rate threshold, metric math, SNS action) | [`03_alarm_detail_slo_slow_burn.png`](screenshots/monitoring/03_alarm_detail_slo_slow_burn.png), [`04_alarm_graph_slo_slow_burn.png`](screenshots/monitoring/04_alarm_graph_slo_slow_burn.png) |
+| Notification procedure (subscription confirmed, alarm email received) | [`01_sns_subscription_confirmed.png`](screenshots/monitoring/01_sns_subscription_confirmed.png), [`02_alarm_email_slo_slow_burn.png`](screenshots/monitoring/02_alarm_email_slo_slow_burn.png) |
+| Availability and 4xx breakdown (0 5xx; 4xx is scanner traffic) | [`07_application_map_summary.png`](screenshots/monitoring/07_application_map_summary.png) |
+| Cost-allocation tagging (79 resources, including instances from the launch template) | [`09_resource_group_tagged_resources.png`](screenshots/monitoring/09_resource_group_tagged_resources.png) |
+| Built from code, no drift | [`10_terraform_plan_no_drift.txt`](screenshots/monitoring/10_terraform_plan_no_drift.txt) |
+| Configuration | [`infra/monitoring.tf`](infra/monitoring.tf), [`infra/versions.tf`](infra/versions.tf) (tags), [`infra/variables.tf`](infra/variables.tf) (SLO targets), [`infra/templates/user-data.sh.tpl`](infra/templates/user-data.sh.tpl) (agent) |
 
-Dashboard JSON export, from CloudShell after apply:
+First real measurement, from the latency alarm's own evaluation: p95
+between 2 ms and 54 ms against the 500 ms SLO, which supports tightening
+the target toward 300 ms once a few weeks of data confirm it.
+
+Dashboard JSON export, from CloudShell:
 
 ```bash
 aws cloudwatch get-dashboard --dashboard-name appointments \

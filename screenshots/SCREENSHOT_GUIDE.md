@@ -86,3 +86,4 @@ Located in `screenshots/monitoring/`. Built by [`infra/monitoring.tf`](../infra/
 | 07 | `07_application_map_summary.png` | CloudWatch Application Map for the ALB: 0 5xx, 100% availability; most traffic is 4xx from scanners, which is why 4xx is excluded from the availability SLI |
 | 08 | `08_dashboard_appointments.png` | The Terraform-built `appointments` dashboard: SLO targets, all 12 alarms OK, requests/sec, p95/p50 latency against the 500 ms SLO line, 5xx error rate against the 0.1% error-budget line |
 | 09 | `09_resource_group_tagged_resources.png` | Resource group by tag: 79 resources carrying the cost-allocation tags, including an app instance launched after apply (tags applied through the launch template) |
+| 10 | `10_terraform_plan_no_drift.txt` | `terraform plan` after apply: no differences between the code and AWS |
