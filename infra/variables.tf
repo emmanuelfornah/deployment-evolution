@@ -75,9 +75,9 @@ variable "db_instance_class" {
 }
 
 variable "db_multi_az" {
-  description = "Set true for RDS-level HA within the region. Off by default to keep the base stack cheap; DR posture is handled by the separate cross-region read replica, not this flag."
+  description = "RDS-level HA within the region: a synchronous standby in a second AZ with automatic failover. On, matching the live instance; it's what lets the database meet the 99.9% availability SLO (MONITORING.md). Cross-region DR is separate (DR_SCENARIO.md)."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "health_check_path" {

@@ -18,7 +18,7 @@ resource "aws_db_subnet_group" "main" {
 resource "aws_db_instance" "main" {
   identifier        = "scheduler-db" # matches the name already in use
   engine            = "mysql"
-  engine_version    = "8.0"
+  engine_version    = "8.4" # RDS upgraded the instance to 8.4.x when MySQL 8.0 left standard support; "8.0" here would plan a downgrade AWS rejects
   instance_class    = var.db_instance_class
   allocated_storage = 20 # GB — RDS free-tier ceiling, plenty at this app's scale
   storage_type      = "gp3"

@@ -134,8 +134,9 @@ Live, health-checked, old fleet held for rollback window
   traffic — for low, bursty appointment-booking traffic, that line bought no
   HA guarantee an Auto Scaling Group + ALB doesn't already provide.
 - The migration kept the same VPC, IAM posture, and HA characteristics
-  (multi-AZ, self-healing, zero-downtime deploys) while cutting estimated
-  run cost from ~$180-220/mo to ~$50-70/mo.
+  (multi-AZ, self-healing, zero-downtime deploys) while cutting the shared
+  core of the bill (control plane, compute, NAT, ALB, RDS) from
+  ~$180-220/mo to ~$115/mo at list price (see MONITORING.md).
 - Kubernetes competency is still demonstrated and evidenced — the original
   EKS build was completed, verified end-to-end (rolling deploys, rollback,
   a real production incident diagnosed via `kubectl logs` and fixed), then
@@ -306,8 +307,9 @@ The automated system enables:
 - **Reduced staff workload** — no phone calls for appointment scheduling
 - **Improved customer satisfaction** — instant confirmation, no double-bookings
 - **Scalable infrastructure** — supports business growth without infrastructure changes
-- **Operational cost savings** — the EKS→EC2 migration alone cut estimated
-  run cost from ~$180-220/mo to ~$50-70/mo with no loss of HA characteristics
+- **Operational cost savings** — the EKS→EC2 migration roughly halved the
+  core run cost (~$180-220/mo to ~$115/mo at list price) with no loss of HA
+  characteristics
 
 ---
 

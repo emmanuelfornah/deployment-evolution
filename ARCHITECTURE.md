@@ -21,7 +21,8 @@ is provisioned by the Terraform in [`infra/`](infra/).
    Auto Scaling Group, one per AZ, run the Django container pulled from
    ECR. They have no public IPs.
 4. **Data tier (data subnets).** Bookings live in **Amazon RDS MySQL
-   8.0**, encrypted at rest, with **IAM database authentication**, so no
+   8.4**, Multi-AZ (a standby in the second AZ with automatic failover),
+   encrypted at rest, with **IAM database authentication**, so no
    database password exists in app code or config. Salon announcements
    come from **Amazon DynamoDB** (on-demand, point-in-time recovery).
 

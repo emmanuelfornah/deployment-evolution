@@ -61,7 +61,7 @@ are the two identities that survive every deploy.
 | Error rate % | ALB `HTTPCode_ELB_5XX_Count` + `HTTPCode_Target_5XX_Count` ÷ `RequestCount` | Sum | Availability SLI |
 | Latency p95 / p50 | ALB `TargetResponseTime` | p95, p50 | Latency SLI; p50 shows whether slowness is everyone or a tail |
 | Healthy / unhealthy targets | ALB `HealthyHostCount`, `UnHealthyHostCount` | Min / Max | "Is the site up", deploy health |
-| Database CPU | RDS `CPUUtilization` | Average | Capacity of the single `db.t4g.micro` |
+| Database CPU | RDS `CPUUtilization` | Average | Capacity of the `db.t4g.micro` primary |
 | Database connections | RDS `DatabaseConnections` | Max | Connection leaks, gunicorn worker count |
 | Database free storage | RDS `FreeStorageSpace` | Min | 20 GB allocated; MySQL stops writing when full |
 
@@ -96,11 +96,11 @@ instrumentation (ADOT), sampling 5% of requests.
 | **Availability** | Non-5xx requests ÷ all requests at the ALB | **99.9%** | 0.1% of requests (~43 min of full outage) |
 | **Latency** | p95 `TargetResponseTime` | **< 500 ms** | Alarm when p95 exceeds it for 3 of 5 minutes |
 
-**Why 99.9%, not 99.99%:** the compute tier is multi-AZ, but RDS is
-single-AZ by design (it halves the database cost; see the README's cost
-posture). An RDS maintenance window or an AZ problem can take minutes,
-which 99.9% absorbs and 99.99% (4 minutes a month) does not. The SLO
-promises what the architecture can actually deliver.
+**Why 99.9%, not 99.99%:** both tiers survive losing an AZ (two app
+instances across AZs, Multi-AZ RDS), but an RDS failover still takes
+one to two minutes and a bad deploy can take a few more to roll back.
+99.9% (~43 minutes a month) absorbs that; 99.99% (~4 minutes) does not.
+The SLO promises what the architecture can actually deliver.
 
 **Why 500 ms, not 300 ms:** every booking page is server-rendered by
 Django and does an RDS query plus a DynamoDB scan for announcements. 500
@@ -197,14 +197,14 @@ to confirm in the AWS Pricing Calculator):
 | NAT gateway | $0.045/h + minimal data | 32.85 |
 | EC2 | 2 × t4g.small × $0.0168/h | 24.53 |
 | Application Load Balancer | $0.0225/h + ~1 LCU | 22.27 |
-| RDS | db.t4g.micro single-AZ + 20 GB gp3 | 13.98 |
+| RDS | db.t4g.micro Multi-AZ + 20 GB gp3 | 27.96 |
 | Public IPv4 addresses | ALB (2) + NAT (1) × $0.005/h | 10.95 |
 | EC2 detailed monitoring | 2 instances × ~7 metrics × $0.30 | 4.20 |
 | EBS | 2 × 20 GB gp3 | 3.20 |
 | CloudWatch | 9 alarms (2 use 3 metrics), logs, flow logs | ~4.00 |
 | KMS, Secrets Manager, Route 53 zone | 2 keys, 2 secrets, 1 zone | ~3.30 |
 | CodePipeline, CodeBuild, ECR, Config, DynamoDB | Low usage | ~4.00 |
-| **Total** | | **~$225** |
+| **Total** | | **~$240** |
 
 The single biggest line is the private connections to AWS services,
 not compute.
@@ -231,10 +231,10 @@ Considered and rejected: **scaling to one instance at night** (the
 lab's "minimum instances" lever). It would save ~$6 but break the
 two-AZ guarantee the availability SLO depends on. Already in place:
 ECR lifecycle policy (untagged images expire after 14 days), 30-day log
-retention, gp3 volumes, Graviton instances, single-AZ RDS.
+retention, gp3 volumes, Graviton instances.
 
-Actions 1 and 2 together cut the list-price bill by about **45%**
-(~$225 to ~$120) with no change to the SLOs.
+Actions 1 and 2 together cut the list-price bill by about **44%**
+(~$240 to ~$135) with no change to the SLOs.
 
 ## Appendix: evidence and exports
 

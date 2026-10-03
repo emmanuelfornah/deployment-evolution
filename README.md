@@ -177,8 +177,9 @@ Every image is listed in the [screenshot guide](screenshots/SCREENSHOT_GUIDE.md)
   of traffic — for low, bursty appointment-booking traffic, that line
   bought no HA guarantee an ASG + ALB doesn't already provide.
 - The migration kept the same VPC, IAM posture, and HA characteristics
-  (multi-AZ, self-healing, zero-downtime blue/green) while cutting
-  estimated run cost from ~$180-220/mo to ~$50-70/mo.
+  (multi-AZ, self-healing, zero-downtime blue/green) while cutting the
+  shared core of the bill (control plane, compute, NAT, ALB, RDS) from
+  ~$180-220/mo to ~$115/mo at list price, Multi-AZ RDS included.
 - Kubernetes competency is still demonstrated and evidenced (Phase 1,
   above) — this isn't "EKS is bad," it's recognizing when a simpler,
   cheaper architecture serves the same workload equally well. See
@@ -234,11 +235,10 @@ bought:
 - **gp3 over gp2/io-family EBS** — cheaper per-GB with better baseline
   IOPS than gp2, no reason to pay for a higher storage tier this
   workload doesn't need.
-- **Single-AZ RDS by default** — Multi-AZ RDS roughly doubles the
-  database cost; not turned on here because the compute tier already
-  provides multi-AZ HA and the DB isn't the current availability
-  bottleneck. A real production system with a stricter RPO would revisit
-  this specific tradeoff, not apply it blindly.
+- **Multi-AZ RDS, paid for on purpose** — it roughly doubles the
+  database line (~$14 to ~$28/mo), and it's the one HA upgrade kept:
+  without a standby, a single AZ problem takes bookings down, which a
+  99.9% availability SLO ([`MONITORING.md`](MONITORING.md)) can't absorb.
 - **DR kept pilot-light and build-on-demand, not always-on** — the full
   cross-region design exists ([`infra/DR_SCENARIO.md`](infra/DR_SCENARIO.md)) but isn't running, because
   paying for a warm standby 24/7 isn't justified without a concrete
@@ -251,23 +251,32 @@ bought:
   the same "cut cost without cutting availability" principle as the
   core migration, just at a smaller scale.
 
+List prices, us-east-2, 730 hours a month. The line-by-line breakdown
+is in [`MONITORING.md`](MONITORING.md#7-cost-analysis).
+
 | | EKS (Phase 1, torn down) | EC2 (Phase 2, live) |
 |---|---|---|
 | Control plane | ~$73/mo | $0 |
-| Compute (multi-AZ) | ~$60/mo | ~$15-30/mo |
-| NAT | ~$32/mo (or ~$3/mo NAT instance) | same |
-| ALB | ~$20/mo | ~$20/mo |
-| RDS (single-AZ, small) | ~$15/mo | ~$15/mo |
-| **Total (estimated)** | **~$180-220/mo** | **~$50-70/mo** |
+| Compute | ~$60/mo | ~$32/mo (2× t4g.small, EBS, detailed monitoring) |
+| NAT gateway | ~$32/mo | ~$33/mo |
+| ALB | ~$20/mo | ~$22/mo |
+| RDS | ~$15/mo (single-AZ) | ~$28/mo (Multi-AZ) |
+| **Shared core** | **~$180-220/mo** | **~$115/mo** |
+| VPC interface endpoints (added in Phase 2) | none | ~$102/mo |
+| Public IPv4, CloudWatch, KMS, pipeline, other | not estimated | ~$22/mo |
+| **Full list price** | | **~$240/mo** |
 
-**What the account is actually billed today, per Cost Explorer:** ~$0/mo
-for EC2, RDS, ALB, Route 53, and DynamoDB combined — this is AWS Free
-Tier coverage at this scale and account age, not a claim that the
-architecture itself costs nothing. The one real recurring line is the
-domain registration (~$16/yr). The `~$50-70/mo` estimate above is the
-honest number: what this architecture actually costs once Free Tier no
-longer applies, which is the figure that reflects the real design
-decisions (Graviton, gp3, single-AZ RDS) rather than a temporary subsidy.
+The migration cut the shared core roughly in half. The biggest line in
+Phase 2 is now the 7 private VPC endpoints running in both AZs, a
+security choice added after the migration; removing them (traffic goes
+through the existing NAT instead) is the top saving in the
+[optimization plan](MONITORING.md#8-cost-optimization) and takes the
+full bill to ~$135/mo.
+
+**What the account is actually billed today, per Cost Explorer:** only
+the domain registrar. Free Tier and credits cover the rest at this scale
+and account age; that's a temporary subsidy, not what the architecture
+costs. The list-price figures above are the honest numbers.
 
 ![Cost Explorer — actual spend](screenshots/ec2-live/08_cost_explorer_actual_spend.png)
 
