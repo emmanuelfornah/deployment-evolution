@@ -81,3 +81,4 @@ Located in `screenshots/monitoring/`. Built by [`infra/monitoring.tf`](../infra/
 | 02 | `02_alarm_email_slo_slow_burn.png` | Alarm email: 6h error-budget burn-rate SLO alarm entering OK, with its metric-math expression |
 | 03 | `03_alarm_detail_slo_slow_burn.png` | Alarm configuration: 6h burn-rate threshold (0.6%), error-budget math expression over three ALB metrics, SNS actions enabled, state OK |
 | 04 | `04_alarm_graph_slo_slow_burn.png` | 6h 5xx error rate at 0% against the 0.6% burn-rate threshold; state timeline from insufficient data to OK at apply time |
+| 05 | `05_alarms_list_all_ok.png` | All 12 `appointments-` alarms created by Terraform, state OK, actions enabled |
