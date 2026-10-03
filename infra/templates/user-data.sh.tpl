@@ -14,11 +14,44 @@ systemctl enable --now codedeploy-agent
 
 # CloudWatch agent, pointed at the log group Terraform created — actual
 # container log shipping is `docker run --log-driver=awslogs` in the
-# CodeDeploy ApplicationStart hook, this covers instance/system logs.
+# CodeDeploy ApplicationStart hook, this covers instance/system logs
+# plus the memory/disk/CPU metrics EC2 doesn't report on its own.
+#
+# Metrics land in appointments/ContainerMetrics twice: per instance
+# (InstanceId dimension, for drilling in) and rolled up across the
+# fleet (aggregation_dimensions [[]], no dimensions at all). Alarms
+# watch the roll-up because it's the one series that survives
+# CodeDeploy replacing every instance on each blue/green deploy.
+# Quoted heredoc: bash must not expand the agent's own $${aws:...}
+# placeholders (Terraform's templatefile has already filled in ours).
 dnf install -y amazon-cloudwatch-agent
 mkdir -p /opt/aws/amazon-cloudwatch-agent/etc
-cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<EOF
+cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json <<'EOF'
 {
+  "agent": {
+    "metrics_collection_interval": 60
+  },
+  "metrics": {
+    "namespace": "${metrics_namespace}",
+    "append_dimensions": {
+      "InstanceId": "$${aws:InstanceId}"
+    },
+    "aggregation_dimensions": [[]],
+    "metrics_collected": {
+      "mem": {
+        "measurement": ["mem_used_percent"]
+      },
+      "disk": {
+        "measurement": ["used_percent"],
+        "resources": ["/"],
+        "drop_device": true
+      },
+      "cpu": {
+        "measurement": ["cpu_usage_active"],
+        "totalcpu": true
+      }
+    }
+  },
   "logs": {
     "logs_collected": {
       "files": {

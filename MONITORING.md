@@ -14,6 +14,7 @@ flowchart LR
         alb[ALB metrics<br/>requests, 5xx, latency, target health]
         rds[RDS metrics<br/>CPU, connections, storage]
         app[Container logs<br/>Docker awslogs driver]
+        agent[CloudWatch agent<br/>memory, disk, CPU per instance]
         flow[VPC Flow Logs]
         dblogs[RDS error / general logs]
     end
@@ -25,7 +26,7 @@ flowchart LR
     end
 
     subgraph act [Alerting and visualization]
-        alarms[9 alarms<br/>SLO burn rate, latency, health, DB]
+        alarms[12 alarms<br/>SLO burn rate, latency, health, DB, instances]
         sns[SNS topic<br/>KMS-encrypted]
         email([Email])
         dash[Dashboard: appointments]
@@ -34,6 +35,7 @@ flowchart LR
 
     alb --> metrics
     rds --> metrics
+    agent --> metrics
     app --> logs
     flow --> logs
     dblogs --> logs
@@ -62,8 +64,18 @@ are the two identities that survive every deploy.
 | Latency p95 / p50 | ALB `TargetResponseTime` | p95, p50 | Latency SLI; p50 shows whether slowness is everyone or a tail |
 | Healthy / unhealthy targets | ALB `HealthyHostCount`, `UnHealthyHostCount` | Min / Max | "Is the site up", deploy health |
 | Database CPU | RDS `CPUUtilization` | Average | Capacity of the `db.t4g.micro` primary |
-| Database connections | RDS `DatabaseConnections` | Max | Connection leaks, gunicorn worker count |
+| Database connections | RDS `DatabaseConnections` | Max | Connection leaks |
 | Database free storage | RDS `FreeStorageSpace` | Min | 20 GB allocated; MySQL stops writing when full |
+| Instance memory, disk, CPU | CloudWatch agent → `appointments/ContainerMetrics` (`mem_used_percent`, `disk_used_percent`, `cpu_usage_active`) | Max across fleet; Average per instance | EC2 doesn't report memory or disk on its own; a t4g.small has 2 GiB and Docker images fill the 20 GB root volume |
+
+The agent publishes each metric twice: per instance (`InstanceId`
+dimension, for the dashboard) and as a fleet roll-up with no dimensions
+(for alarms). The roll-up is the only series that survives CodeDeploy
+replacing every instance on each deploy. The agent config lives in the
+launch template's user data ([`infra/templates/user-data.sh.tpl`](infra/templates/user-data.sh.tpl)),
+so every new blue/green instance starts publishing on boot. The instance
+role may write only to that namespace (`cloudwatch:namespace` condition
+in `iam.tf`).
 
 Measured at the load balancer on purpose: it sees exactly what a
 visitor sees, including requests that never reach Django.
@@ -72,14 +84,17 @@ visitor sees, including requests that never reach Django.
 
 | Log group | Contents | Retention |
 |---|---|---|
-| `/appointments/app` | Django/gunicorn container output (`--log-driver awslogs`) | 30 days |
+| `/appointments/app` | Django container output, one line per request (`--log-driver awslogs`) | 30 days |
 | `/vpc/appointments-flow-logs` | All accepted and rejected VPC traffic | 30 days |
 | `/appointments/codebuild/*` | Unit test and image build output | 30 days |
 | `/aws/rds/instance/scheduler-db/*` | MySQL error and general logs | RDS default |
 
 Saved Logs Insights queries (first places to look when an alarm fires):
-`appointments/app-errors` (errors, exceptions, tracebacks in the app log)
-and `appointments/vpc-rejected-traffic` (top rejected sources and ports).
+`appointments/app-errors` (errors, exceptions, tracebacks in the app log),
+`appointments/http-4xx-by-path` (4xx grouped by status and path: many
+paths with 404 means bots probing for `/wp-login.php` or `/.env`; one
+real path repeating means a broken link or form) and
+`appointments/vpc-rejected-traffic` (top rejected sources and ports).
 
 ### Traces
 
@@ -125,6 +140,9 @@ when it fires and again when it recovers.
 | `app-5xx` | > 5 Django 5xx in 5 min | Same day | Run `app-errors` query |
 | `rds-cpu-high` | RDS CPU > 80% for 10 min | Same day | Slow or N+1 queries; see section 6 |
 | `rds-storage-low` | < 2 GB free | Same day | Increase `allocated_storage` in `rds.tf` |
+| `instance-memory-high` | Busiest instance > 85% memory for 10 min | Same day | Per-instance memory widget; restart the container or size up |
+| `instance-disk-high` | Any root volume > 80% full | Same day | `docker image prune` via SSM; old images pile up across deploys |
+| `instance-cpu-high` | Busiest instance > 80% CPU for 10 min | Same day | Check request rate; scale out (`asg_max_size`) or size up |
 
 **Why burn-rate alerts:** a plain "error rate > 0.1%" alarm fires on a
 single failed request at low traffic and says nothing about urgency. The
@@ -144,9 +162,10 @@ One CloudWatch dashboard, `appointments`, read top-down:
 
 | Row | Audience | Widgets |
 |---|---|---|
-| Status | Everyone (owner, reviewer, on-call) | SLO targets as text; live state of all 9 alarms |
+| Status | Everyone (owner, reviewer, on-call) | SLO targets as text; live state of all 12 alarms |
 | Golden signals | On-call | Requests/sec; latency p95/p50 with the SLO line; error rate % with the error-budget line |
 | Capacity | On-call | Target health; RDS CPU, connections, free storage |
+| Instances | On-call | Memory %, disk %, CPU % per instance, each with its alarm line |
 
 Two further views are designed but not built, because the data for them
 lives elsewhere:
@@ -201,7 +220,7 @@ to confirm in the AWS Pricing Calculator):
 | Public IPv4 addresses | ALB (2) + NAT (1) × $0.005/h | 10.95 |
 | EC2 detailed monitoring | 2 instances × ~7 metrics × $0.30 | 4.20 |
 | EBS | 2 × 20 GB gp3 | 3.20 |
-| CloudWatch | 9 alarms (2 use 3 metrics), logs, flow logs | ~4.00 |
+| CloudWatch | 12 alarms (2 use 3 metrics), ~9 agent metrics, logs, flow logs | ~7.00 |
 | KMS, Secrets Manager, Route 53 zone | 2 keys, 2 secrets, 1 zone | ~3.30 |
 | CodePipeline, CodeBuild, ECR, Config, DynamoDB | Low usage | ~4.00 |
 | **Total** | | **~$240** |

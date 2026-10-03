@@ -204,8 +204,9 @@ Every image is listed in the [screenshot guide](screenshots/SCREENSHOT_GUIDE.md)
   dashboard (requests/sec, p95 latency, error rate) and cost-allocation
   tags, all written in [`infra/monitoring.tf`](infra/monitoring.tf).
   The full plan, including cost analysis and savings, is in
-  [`MONITORING.md`](MONITORING.md). Agent-based disk/memory metrics and
-  tracing are still to do.
+  [`MONITORING.md`](MONITORING.md). The CloudWatch agent in the launch
+  template's user data adds per-instance memory, disk and CPU, with
+  alarms. Tracing is still to do.
 
 ## Security posture
 
@@ -263,7 +264,7 @@ is in [`MONITORING.md`](MONITORING.md#7-cost-analysis).
 | RDS | ~$15/mo (single-AZ) | ~$28/mo (Multi-AZ) |
 | **Shared core** | **~$180-220/mo** | **~$115/mo** |
 | VPC interface endpoints (added in Phase 2) | none | ~$102/mo |
-| Public IPv4, CloudWatch, KMS, pipeline, other | not estimated | ~$22/mo |
+| Public IPv4, CloudWatch, KMS, pipeline, other | not estimated | ~$25/mo |
 | **Full list price** | | **~$240/mo** |
 
 The migration cut the shared core roughly in half. The biggest line in

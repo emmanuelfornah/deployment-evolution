@@ -50,6 +50,7 @@ resource "aws_launch_template" "app" {
   user_data = base64encode(templatefile("${path.module}/templates/user-data.sh.tpl", {
     aws_region        = var.aws_region
     log_group         = aws_cloudwatch_log_group.app.name
+    metrics_namespace = local.agent_metrics_namespace
     secret_arn        = aws_secretsmanager_secret.app_config.arn
     database_host     = aws_db_instance.main.address
     db_username       = var.app_db_username

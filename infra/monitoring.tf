@@ -59,6 +59,9 @@ locals {
   fast_burn_threshold = 14.4 * local.error_budget_pct
   slow_burn_threshold = 6 * local.error_budget_pct
 
+  # Written by the CloudWatch agent (templates/user-data.sh.tpl).
+  agent_metrics_namespace = "appointments/ContainerMetrics"
+
   alb_dimensions = {
     TargetGroup  = aws_lb_target_group.app.arn_suffix
     LoadBalancer = aws_lb.main.arn_suffix
@@ -284,6 +287,56 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage_low" {
   ok_actions          = [aws_sns_topic.alerts.arn]
 }
 
+# --- Instance resources (CloudWatch agent) ------------------------------
+
+# Fleet roll-up series (no dimensions): Maximum = the busiest instance.
+# Missing data is not breaching, so the alarms stay quiet until the
+# first deploy after apply has instances running the new agent config.
+resource "aws_cloudwatch_metric_alarm" "instance_memory_high" {
+  alarm_name          = "appointments-instance-memory-high"
+  alarm_description   = "An app instance is above 85% memory for 10 minutes (t4g.small has 2 GiB)"
+  namespace           = local.agent_metrics_namespace
+  metric_name         = "mem_used_percent"
+  statistic           = "Maximum"
+  period              = 300
+  evaluation_periods  = 2
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = 85
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "instance_disk_high" {
+  alarm_name          = "appointments-instance-disk-high"
+  alarm_description   = "An app instance root volume is above 80% full (Docker images accumulate on the 20 GB volume)"
+  namespace           = local.agent_metrics_namespace
+  metric_name         = "disk_used_percent"
+  statistic           = "Maximum"
+  period              = 300
+  evaluation_periods  = 1
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = 80
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+}
+
+resource "aws_cloudwatch_metric_alarm" "instance_cpu_high" {
+  alarm_name          = "appointments-instance-cpu-high"
+  alarm_description   = "An app instance is above 80% CPU for 10 minutes"
+  namespace           = local.agent_metrics_namespace
+  metric_name         = "cpu_usage_active"
+  statistic           = "Maximum"
+  period              = 300
+  evaluation_periods  = 2
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = 80
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+}
+
 # --- Dashboard --------------------------------------------------------
 
 # One dashboard, read top-down by audience: the status row answers "is
@@ -322,6 +375,9 @@ resource "aws_cloudwatch_dashboard" "main" {
             aws_cloudwatch_metric_alarm.unhealthy_hosts.arn,
             aws_cloudwatch_metric_alarm.rds_cpu.arn,
             aws_cloudwatch_metric_alarm.rds_storage_low.arn,
+            aws_cloudwatch_metric_alarm.instance_memory_high.arn,
+            aws_cloudwatch_metric_alarm.instance_disk_high.arn,
+            aws_cloudwatch_metric_alarm.instance_cpu_high.arn,
           ]
         }
       },
@@ -397,6 +453,45 @@ resource "aws_cloudwatch_dashboard" "main" {
           ]
         }
       },
+      {
+        type = "metric", x = 0, y = 18, width = 8, height = 6
+        properties = {
+          title  = "Instance memory used % (per instance)"
+          region = var.aws_region
+          period = 60
+          yAxis  = { left = { min = 0, max = 100 } }
+          metrics = [
+            [{ expression = "SEARCH('{${local.agent_metrics_namespace},InstanceId} MetricName=\"mem_used_percent\"', 'Average', 60)", id = "mem" }],
+          ]
+          annotations = { horizontal = [{ label = "Alarm", value = 85 }] }
+        }
+      },
+      {
+        type = "metric", x = 8, y = 18, width = 8, height = 6
+        properties = {
+          title  = "Instance disk used % (root volume)"
+          region = var.aws_region
+          period = 300
+          yAxis  = { left = { min = 0, max = 100 } }
+          metrics = [
+            [{ expression = "SEARCH('{${local.agent_metrics_namespace},InstanceId,path,fstype} MetricName=\"disk_used_percent\"', 'Maximum', 300)", id = "disk" }],
+          ]
+          annotations = { horizontal = [{ label = "Alarm", value = 80 }] }
+        }
+      },
+      {
+        type = "metric", x = 16, y = 18, width = 8, height = 6
+        properties = {
+          title  = "Instance CPU %"
+          region = var.aws_region
+          period = 60
+          yAxis  = { left = { min = 0, max = 100 } }
+          metrics = [
+            [{ expression = "SEARCH('{${local.agent_metrics_namespace},InstanceId,cpu} MetricName=\"cpu_usage_active\"', 'Average', 60)", id = "cpu" }],
+          ]
+          annotations = { horizontal = [{ label = "Alarm", value = 80 }] }
+        }
+      },
     ]
   })
 }
@@ -425,5 +520,23 @@ resource "aws_cloudwatch_query_definition" "vpc_rejects" {
     | stats count(*) as attempts by srcAddr, dstPort
     | sort attempts desc
     | limit 20
+  EOT
+}
+
+# Django's runserver logs one line per request to the app log group:
+#   [03/Oct/2026 08:22:11] "GET /wp-login.php HTTP/1.1" 404 2543
+# This groups the 4xx by status and path: bots probing for WordPress or
+# .env files show up as many paths with 404; a broken link or form
+# shows up as one real path repeating.
+resource "aws_cloudwatch_query_definition" "http_4xx" {
+  name            = "appointments/http-4xx-by-path"
+  log_group_names = [aws_cloudwatch_log_group.app.name]
+  query_string    = <<-EOT
+    fields @timestamp, @message
+    | parse @message /"(?<method>[A-Z]+) (?<path>\S+) [^"]*" (?<status>\d{3})/
+    | filter status like /^4/
+    | stats count(*) as hits by status, method, path
+    | sort hits desc
+    | limit 25
   EOT
 }

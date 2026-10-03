@@ -116,6 +116,25 @@ resource "aws_iam_role_policy" "app_secrets" {
   })
 }
 
+# CloudWatch agent metrics (user-data.sh.tpl). PutMetricData has no
+# resource-level scoping, so the namespace condition is the only way to
+# stop the instance writing into any other namespace.
+resource "aws_iam_role_policy" "app_cloudwatch_metrics" {
+  name = "cloudwatch-metrics-scoped"
+  role = aws_iam_role.app_instance.id
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect   = "Allow"
+      Action   = "cloudwatch:PutMetricData"
+      Resource = "*"
+      Condition = {
+        StringEquals = { "cloudwatch:namespace" = local.agent_metrics_namespace }
+      }
+    }]
+  })
+}
+
 resource "aws_iam_role_policy" "app_cloudwatch_logs" {
   name = "cloudwatch-logs-scoped"
   role = aws_iam_role.app_instance.id
