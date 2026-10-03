@@ -58,9 +58,17 @@ resource "aws_launch_template" "app" {
     health_check_path = var.health_check_path
   }))
 
+  # default_tags don't reach resources launched *from* a template, so
+  # the instances and their volumes (the bulk of compute spend) need the
+  # cost tags here explicitly or they show up as untagged in Cost Explorer.
   tag_specifications {
     resource_type = "instance"
-    tags          = { Name = "appointments-app" }
+    tags          = merge(local.cost_tags, { Name = "appointments-app" })
+  }
+
+  tag_specifications {
+    resource_type = "volume"
+    tags          = merge(local.cost_tags, { Name = "appointments-app" })
   }
 }
 

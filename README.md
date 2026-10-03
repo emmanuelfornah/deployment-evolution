@@ -1,6 +1,6 @@
 # Deployment Evolution — from EKS to EC2 Blue/Green, for Real
 
-**→ [Infrastructure code (Terraform)](infra/)** · **→ [Architecture walkthrough](ARCHITECTURE.md)** · **→ [Live app](https://appointments.emmanuelfornah.com)**
+**→ [Infrastructure code (Terraform)](infra/)** · **→ [Architecture walkthrough](ARCHITECTURE.md)** · **→ [Monitoring & SLOs](MONITORING.md)** · **→ [Live app](https://appointments.emmanuelfornah.com)**
 
 ### Infrastructure
 
@@ -198,13 +198,13 @@ Every image is listed in the [screenshot guide](screenshots/SCREENSHOT_GUIDE.md)
   written, then found to conflict with CodeDeploy's ASG-replacement
   behavior and disabled pending a Lambda-based redesign that can look
   up the current live ASG dynamically instead of naming it statically.
-- **CloudWatch monitoring** — email alerts (SNS) on site down (no
-  healthy targets), ALB and app 5xx, p95 latency, RDS CPU and RDS free
-  storage, plus a CloudWatch dashboard, are written in
-  [`infra/monitoring.tf`](infra/monitoring.tf). Alarms key on the ALB
-  target group and the RDS instance, never the ASG, because CodeDeploy
-  replaces the ASG on every deploy. Agent-based disk/memory metrics are
-  still to do.
+- **Monitoring, SLOs and cost plan** — SLOs of 99.9% availability and
+  p95 < 500 ms, error-budget burn-rate alerts by email, a CloudWatch
+  dashboard (requests/sec, p95 latency, error rate) and cost-allocation
+  tags, all written in [`infra/monitoring.tf`](infra/monitoring.tf).
+  The full plan, including cost analysis and savings, is in
+  [`MONITORING.md`](MONITORING.md). Agent-based disk/memory metrics and
+  tracing are still to do.
 
 ## Security posture
 

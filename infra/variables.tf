@@ -119,3 +119,15 @@ variable "alert_email" {
   type        = string
   default     = ""
 }
+
+variable "slo_availability_target" {
+  description = "Availability SLO: share of ALB requests that are not 5xx, over 30 days (MONITORING.md). Drives the error-budget burn-rate alarms."
+  type        = number
+  default     = 99.9
+}
+
+variable "slo_latency_p95_seconds" {
+  description = "Latency SLO: p95 TargetResponseTime at the ALB. 0.5s to start (server-rendered Django + an RDS query + a DynamoDB scan per page); tighten toward 0.3s once a few weeks of dashboard data confirm the real baseline."
+  type        = number
+  default     = 0.5
+}

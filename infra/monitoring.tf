@@ -51,6 +51,14 @@ resource "aws_sns_topic_subscription" "alerts_email" {
 }
 
 locals {
+  # Error budget = the share of requests allowed to fail (0.1% at 99.9%).
+  # Burn-rate multipliers from the Google SRE workbook: 14.4x over 1h
+  # spends 2% of a 30-day budget (page now); 6x over 6h spends 5%
+  # (look today). Thresholds below are error-rate percentages.
+  error_budget_pct    = 100 - var.slo_availability_target
+  fast_burn_threshold = 14.4 * local.error_budget_pct
+  slow_burn_threshold = 6 * local.error_budget_pct
+
   alb_dimensions = {
     TargetGroup  = aws_lb_target_group.app.arn_suffix
     LoadBalancer = aws_lb.main.arn_suffix
@@ -119,13 +127,115 @@ resource "aws_cloudwatch_metric_alarm" "app_5xx" {
   ok_actions          = [aws_sns_topic.alerts.arn]
 }
 
-# --- Latency ----------------------------------------------------------
+# --- SLOs (MONITORING.md) ---------------------------------------------
 
-# p95, not average: one slow DB query shouldn't hide behind fast static
-# requests. 3 of 5 minutes so a single cold start doesn't page anyone.
-resource "aws_cloudwatch_metric_alarm" "slow_responses" {
-  alarm_name          = "appointments-slow-responses"
-  alarm_description   = "p95 response time above 2s for 3 of the last 5 minutes"
+# Availability SLI = non-5xx requests / all requests at the ALB. The
+# two burn-rate alarms fire while the SLO is *at risk*, long before the
+# month's budget is gone. Low-traffic guard: under the minimum request
+# count one stray 500 would read as a multi-percent error rate, so the
+# expression reports 0 instead.
+resource "aws_cloudwatch_metric_alarm" "slo_fast_burn" {
+  alarm_name          = "appointments-slo-error-budget-fast-burn"
+  alarm_description   = "Availability SLO at risk: 1h error rate is burning the ${var.slo_availability_target}% error budget at 14.4x (2% of the monthly budget gone in an hour)"
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = local.fast_burn_threshold
+  evaluation_periods  = 1
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+
+  metric_query {
+    id          = "error_rate"
+    label       = "5xx error rate (%) over 1h"
+    expression  = "IF(requests >= 20, 100 * (FILL(elb_5xx, 0) + FILL(app_5xx, 0)) / requests, 0)"
+    return_data = true
+  }
+  metric_query {
+    id = "requests"
+    metric {
+      namespace   = "AWS/ApplicationELB"
+      metric_name = "RequestCount"
+      dimensions  = { LoadBalancer = aws_lb.main.arn_suffix }
+      period      = 3600
+      stat        = "Sum"
+    }
+  }
+  metric_query {
+    id = "elb_5xx"
+    metric {
+      namespace   = "AWS/ApplicationELB"
+      metric_name = "HTTPCode_ELB_5XX_Count"
+      dimensions  = { LoadBalancer = aws_lb.main.arn_suffix }
+      period      = 3600
+      stat        = "Sum"
+    }
+  }
+  metric_query {
+    id = "app_5xx"
+    metric {
+      namespace   = "AWS/ApplicationELB"
+      metric_name = "HTTPCode_Target_5XX_Count"
+      dimensions  = local.alb_dimensions
+      period      = 3600
+      stat        = "Sum"
+    }
+  }
+}
+
+resource "aws_cloudwatch_metric_alarm" "slo_slow_burn" {
+  alarm_name          = "appointments-slo-error-budget-slow-burn"
+  alarm_description   = "Availability SLO at risk: 6h error rate is burning the ${var.slo_availability_target}% error budget at 6x (5% of the monthly budget gone in 6 hours)"
+  comparison_operator = "GreaterThanThreshold"
+  threshold           = local.slow_burn_threshold
+  evaluation_periods  = 1
+  treat_missing_data  = "notBreaching"
+  alarm_actions       = [aws_sns_topic.alerts.arn]
+  ok_actions          = [aws_sns_topic.alerts.arn]
+
+  metric_query {
+    id          = "error_rate"
+    label       = "5xx error rate (%) over 6h"
+    expression  = "IF(requests >= 100, 100 * (FILL(elb_5xx, 0) + FILL(app_5xx, 0)) / requests, 0)"
+    return_data = true
+  }
+  metric_query {
+    id = "requests"
+    metric {
+      namespace   = "AWS/ApplicationELB"
+      metric_name = "RequestCount"
+      dimensions  = { LoadBalancer = aws_lb.main.arn_suffix }
+      period      = 21600
+      stat        = "Sum"
+    }
+  }
+  metric_query {
+    id = "elb_5xx"
+    metric {
+      namespace   = "AWS/ApplicationELB"
+      metric_name = "HTTPCode_ELB_5XX_Count"
+      dimensions  = { LoadBalancer = aws_lb.main.arn_suffix }
+      period      = 21600
+      stat        = "Sum"
+    }
+  }
+  metric_query {
+    id = "app_5xx"
+    metric {
+      namespace   = "AWS/ApplicationELB"
+      metric_name = "HTTPCode_Target_5XX_Count"
+      dimensions  = local.alb_dimensions
+      period      = 21600
+      stat        = "Sum"
+    }
+  }
+}
+
+# Latency SLI = p95 TargetResponseTime. p95, not average: one slow DB
+# query shouldn't hide behind fast static requests. 3 of 5 minutes so
+# a single cold start doesn't page anyone.
+resource "aws_cloudwatch_metric_alarm" "slo_latency" {
+  alarm_name          = "appointments-slo-latency-p95"
+  alarm_description   = "Latency SLO at risk: p95 response time above ${var.slo_latency_p95_seconds * 1000} ms for 3 of the last 5 minutes"
   namespace           = "AWS/ApplicationELB"
   metric_name         = "TargetResponseTime"
   dimensions          = local.alb_dimensions
@@ -134,7 +244,7 @@ resource "aws_cloudwatch_metric_alarm" "slow_responses" {
   evaluation_periods  = 5
   datapoints_to_alarm = 3
   comparison_operator = "GreaterThanThreshold"
-  threshold           = 2
+  threshold           = var.slo_latency_p95_seconds
   treat_missing_data  = "notBreaching"
   alarm_actions       = [aws_sns_topic.alerts.arn]
   ok_actions          = [aws_sns_topic.alerts.arn]
@@ -176,40 +286,93 @@ resource "aws_cloudwatch_metric_alarm" "rds_storage_low" {
 
 # --- Dashboard --------------------------------------------------------
 
+# One dashboard, read top-down by audience: the status row answers "is
+# the service OK and within SLO?" for anyone; the rows below are the
+# on-call view (traffic, latency, errors, capacity, database).
 resource "aws_cloudwatch_dashboard" "main" {
   dashboard_name = "appointments"
 
   dashboard_body = jsonencode({
     widgets = [
       {
-        type = "metric", x = 0, y = 0, width = 12, height = 6
+        type = "text", x = 0, y = 0, width = 8, height = 6
         properties = {
-          title  = "Requests and errors"
-          region = var.aws_region
-          stat   = "Sum"
-          period = 60
-          metrics = [
-            ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", aws_lb.main.arn_suffix],
-            [".", "HTTPCode_ELB_5XX_Count", ".", "."],
-            [".", "HTTPCode_Target_5XX_Count", "TargetGroup", aws_lb_target_group.app.arn_suffix, "LoadBalancer", aws_lb.main.arn_suffix],
-            [".", "HTTPCode_Target_4XX_Count", ".", ".", ".", "."],
+          markdown = join("\n", [
+            "## Appointments: service status",
+            "**Availability SLO:** ${var.slo_availability_target}% of requests succeed (30 days)",
+            "",
+            "**Latency SLO:** p95 under ${var.slo_latency_p95_seconds * 1000} ms",
+            "",
+            "Alarms email the SNS topic `${aws_sns_topic.alerts.name}`.",
+            "Runbook: MONITORING.md in the repo.",
+          ])
+        }
+      },
+      {
+        type = "alarm", x = 8, y = 0, width = 16, height = 6
+        properties = {
+          title = "Alarm status"
+          alarms = [
+            aws_cloudwatch_metric_alarm.no_healthy_hosts.arn,
+            aws_cloudwatch_metric_alarm.slo_fast_burn.arn,
+            aws_cloudwatch_metric_alarm.slo_slow_burn.arn,
+            aws_cloudwatch_metric_alarm.slo_latency.arn,
+            aws_cloudwatch_metric_alarm.alb_5xx.arn,
+            aws_cloudwatch_metric_alarm.app_5xx.arn,
+            aws_cloudwatch_metric_alarm.unhealthy_hosts.arn,
+            aws_cloudwatch_metric_alarm.rds_cpu.arn,
+            aws_cloudwatch_metric_alarm.rds_storage_low.arn,
           ]
         }
       },
       {
-        type = "metric", x = 12, y = 0, width = 12, height = 6
+        type = "metric", x = 0, y = 6, width = 8, height = 6
         properties = {
-          title  = "Response time (seconds)"
+          title  = "Requests per second"
+          region = var.aws_region
+          period = 60
+          stat   = "Sum"
+          metrics = [
+            [{ expression = "requests / PERIOD(requests)", label = "Requests/sec", id = "rps" }],
+            ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", aws_lb.main.arn_suffix, { id = "requests", visible = false }],
+          ]
+        }
+      },
+      {
+        type = "metric", x = 8, y = 6, width = 8, height = 6
+        properties = {
+          title  = "Latency p95 vs SLO (seconds)"
           region = var.aws_region
           period = 60
           metrics = [
             ["AWS/ApplicationELB", "TargetResponseTime", "TargetGroup", aws_lb_target_group.app.arn_suffix, "LoadBalancer", aws_lb.main.arn_suffix, { stat = "p95", label = "p95" }],
             ["...", { stat = "p50", label = "p50" }],
           ]
+          annotations = {
+            horizontal = [{ label = "SLO", value = var.slo_latency_p95_seconds }]
+          }
         }
       },
       {
-        type = "metric", x = 0, y = 6, width = 12, height = 6
+        type = "metric", x = 16, y = 6, width = 8, height = 6
+        properties = {
+          title  = "Error rate vs SLO (% of requests)"
+          region = var.aws_region
+          period = 300
+          stat   = "Sum"
+          metrics = [
+            [{ expression = "100 * (FILL(elb_5xx, 0) + FILL(app_5xx, 0)) / requests", label = "5xx error rate %", id = "error_rate" }],
+            ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", aws_lb.main.arn_suffix, { id = "requests", visible = false }],
+            [".", "HTTPCode_ELB_5XX_Count", ".", ".", { id = "elb_5xx", visible = false }],
+            [".", "HTTPCode_Target_5XX_Count", "TargetGroup", aws_lb_target_group.app.arn_suffix, "LoadBalancer", aws_lb.main.arn_suffix, { id = "app_5xx", visible = false }],
+          ]
+          annotations = {
+            horizontal = [{ label = "Error budget", value = local.error_budget_pct }]
+          }
+        }
+      },
+      {
+        type = "metric", x = 0, y = 12, width = 12, height = 6
         properties = {
           title  = "Target health"
           region = var.aws_region
@@ -222,7 +385,7 @@ resource "aws_cloudwatch_dashboard" "main" {
         }
       },
       {
-        type = "metric", x = 12, y = 6, width = 12, height = 6
+        type = "metric", x = 12, y = 12, width = 12, height = 6
         properties = {
           title  = "Database"
           region = var.aws_region
@@ -236,4 +399,31 @@ resource "aws_cloudwatch_dashboard" "main" {
       },
     ]
   })
+}
+
+# --- Saved Logs Insights queries ---------------------------------------
+
+# The first two places to look when an alarm fires; saved so nobody has
+# to remember the syntax mid-incident.
+resource "aws_cloudwatch_query_definition" "app_errors" {
+  name            = "appointments/app-errors"
+  log_group_names = [aws_cloudwatch_log_group.app.name]
+  query_string    = <<-EOT
+    fields @timestamp, @message
+    | filter @message like /(?i)(error|exception|traceback)/
+    | sort @timestamp desc
+    | limit 50
+  EOT
+}
+
+resource "aws_cloudwatch_query_definition" "vpc_rejects" {
+  name            = "appointments/vpc-rejected-traffic"
+  log_group_names = [aws_cloudwatch_log_group.vpc_flow_logs.name]
+  query_string    = <<-EOT
+    fields srcAddr, dstPort
+    | filter action = "REJECT"
+    | stats count(*) as attempts by srcAddr, dstPort
+    | sort attempts desc
+    | limit 20
+  EOT
 }

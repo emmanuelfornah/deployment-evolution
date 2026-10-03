@@ -27,13 +27,23 @@ terraform {
   }
 }
 
+# Cost-allocation tags. Activate Project, Environment and Owner as
+# user-defined cost allocation tags in Billing so Cost Explorer can
+# group spend by them (a one-time console step; tags only apply to
+# usage from the activation date forward).
+locals {
+  cost_tags = {
+    Project     = "appointments"
+    Environment = "production"
+    Owner       = var.github_repo_owner
+    ManagedBy   = "terraform"
+  }
+}
+
 provider "aws" {
   region = var.aws_region
 
   default_tags {
-    tags = {
-      Project   = "appointments"
-      ManagedBy = "terraform"
-    }
+    tags = local.cost_tags
   }
 }
