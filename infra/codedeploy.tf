@@ -87,4 +87,5 @@ resource "aws_cloudwatch_metric_alarm" "unhealthy_hosts" {
     LoadBalancer = aws_lb.main.arn_suffix
   }
   alarm_description = "Trips a CodeDeploy rollback if the target group has any unhealthy host during a deploy"
+  alarm_actions     = [aws_sns_topic.alerts.arn] # also emails (monitoring.tf), so a rollback never happens silently
 }

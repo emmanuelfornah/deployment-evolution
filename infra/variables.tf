@@ -16,7 +16,7 @@ variable "root_domain" {
 }
 
 variable "dr_region" {
-  description = "Cross-region DR target (pilot light — see EC2_MIGRATION_PLAN.md v2b, not yet built as Terraform). us-west-2 deliberately, not us-east-1: it's on a different power grid and weather system than the Gulf Coast/central-US winter-storm risk (2021 Texas/ERCOT-style event) that's the actual disaster scenario here, not just 'AWS's other big region.'"
+  description = "Cross-region DR target (pilot light — see DR_SCENARIO.md, not yet built as Terraform). us-west-2 deliberately, not us-east-1: it's on a different power grid and weather system than the Gulf Coast/central-US winter-storm risk (2021 Texas/ERCOT-style event) that's the actual disaster scenario here, not just 'AWS's other big region.'"
   type        = string
   default     = "us-west-2"
 }
@@ -112,4 +112,10 @@ variable "alb_ingress_cidrs" {
   description = "CIDRs allowed to reach the ALB on 443. Defaults to the internet since this is a public demo app; narrow this if it ever isn't."
   type        = list(string)
   default     = ["0.0.0.0/0"]
+}
+
+variable "alert_email" {
+  description = "Email address that receives CloudWatch alarm notifications (monitoring.tf). AWS sends a confirmation link after apply; alerts start once it's clicked. Empty = topic and alarms are still created, nobody is subscribed."
+  type        = string
+  default     = ""
 }
