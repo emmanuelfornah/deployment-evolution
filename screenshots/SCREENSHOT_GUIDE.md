@@ -79,3 +79,4 @@ Located in `screenshots/monitoring/`. Built by [`infra/monitoring.tf`](../infra/
 |---|----------|---------------|
 | 01 | `01_sns_subscription_confirmed.png` | SNS email subscription to `appointments-alerts` confirmed |
 | 02 | `02_alarm_email_slo_slow_burn.png` | Alarm email: 6h error-budget burn-rate SLO alarm entering OK, with its metric-math expression |
+| 03 | `03_alarm_detail_slo_slow_burn.png` | Alarm configuration: 6h burn-rate threshold (0.6%), error-budget math expression over three ALB metrics, SNS actions enabled, state OK |
