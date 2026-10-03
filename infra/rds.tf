@@ -43,6 +43,16 @@ resource "aws_db_instance" "main" {
   final_snapshot_identifier = "scheduler-db-final"
 
   enabled_cloudwatch_logs_exports = ["error", "general", "slowquery"]
+
+  # RDS applies minor version upgrades itself (auto_minor_version_upgrade
+  # defaults to true), so the exact running version (8.4.9 today) moves
+  # under Terraform. Without this, every plan would show a change back
+  # to the bare "8.4" and send a version-change request to the live DB.
+  # allow_major_version_upgrade was set once for the 8.0 -> 8.4 upgrade
+  # and is only a request flag, not a property of the instance.
+  lifecycle {
+    ignore_changes = [engine_version, allow_major_version_upgrade]
+  }
 }
 
 # iam_database_authentication_enabled above only turns the *feature* on —
