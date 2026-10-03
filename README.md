@@ -30,6 +30,19 @@ and install the release, **2.** shift ALB traffic to green once it is
 healthy, **3.** drain the old blue group and delete it after a
 30-minute window, during which rollback is instant.
 
+### Previous architecture (Phase 1: EKS)
+
+![Phase 1 architecture: CodeCommit → CodePipeline → CodeBuild → EKS, with RDS and DynamoDB](screenshots/architecture/cicd-pipeline-eks-architecture.png)
+
+The first version of the same app ran on Amazon EKS. The developer
+pushed code to **CodeCommit**, which started **CodePipeline**. One
+CodeBuild project ran the unit tests, a second built the container
+image and pushed it to **ECR**, and a third deployed the pods to the
+**EKS** cluster. The containers served the app and used the same **RDS**
+and **DynamoDB** data services. It was built, verified and torn down,
+then replaced by the EC2 blue/green design above to cut the EKS
+control-plane cost ([why](#why-the-migration-eks--ec2)).
+
 **Live today at [appointments.emmanuelfornah.com](https://appointments.emmanuelfornah.com)**
 — a highly-available appointment scheduling platform, entirely
 Terraform-provisioned: EC2 (Graviton) in a blue/green Auto Scaling
@@ -126,12 +139,8 @@ quietly broken.
 
 ## 🗄️ Phase 1 — EKS (built, verified, torn down)
 
-![Phase 1 architecture: CodeCommit → CodePipeline → CodeBuild → EKS, with RDS and DynamoDB](screenshots/architecture/cicd-pipeline-eks-architecture.png)
-
-The developer pushes to CodeCommit, which starts CodePipeline. CodeBuild
-runs the unit tests, builds the container image and pushes it to ECR,
-then a third CodeBuild project deploys the pods to EKS. The containers
-serve the app and use RDS and DynamoDB.
+The architecture diagram for this phase is at the
+[top of this README](#previous-architecture-phase-1-eks).
 
 The original build proved the same application on Kubernetes: AWS
 CodeCommit → CodePipeline → CodeBuild → `kubectl apply` → EKS, ALB
