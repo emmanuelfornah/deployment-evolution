@@ -103,6 +103,8 @@ flowchart LR
 
 ![EC2 blue/green pipeline architecture](screenshots/architecture/ec2-bluegreen-pipeline-architecture.webp)
 
+![Full infrastructure: 3-tier VPC, ALB, ASG, RDS, DynamoDB, SSM](screenshots/architecture/ec2-full-infrastructure-architecture.webp)
+
 | Layer | Implementation |
 |---|---|
 | Compute | EC2 (Graviton/t4g), 2 instances across 2 AZs; CodeDeploy owns the Auto Scaling Group after first deploy (see note below) |
