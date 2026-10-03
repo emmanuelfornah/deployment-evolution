@@ -107,9 +107,7 @@ the breadth and the general case it's an instance of.
 Getting from a clean `terraform apply` to this actually being live took
 7 distinct, real bugs — IAM permission gaps CloudTrail had to reveal,
 an IMDS hop-limit issue specific to Docker, an RDS IAM-auth port bug
-buried in a third-party library. Full write-up: `DEPLOYMENT_CODEBUILD.md`
-(private notes — the public version of these stories lives in interview
-conversation, not this README).
+buried in a third-party library.
 
 ## Architecture (current, EC2 phase)
 
@@ -193,8 +191,8 @@ evidence: [`screenshots/ec2-live/`](screenshots/ec2-live/).
   Table, ECR replication, idle standby ASG, Route 53 failover. Target
   RTO ~10-20 min, RPO seconds-to-minutes. Deliberately built on demand
   (near an actual interview date), not left running — see
-  `DR_RUNBOOK.md` and `DR_SCENARIO.md` for the full design and the
-  reasoning behind the region pairing.
+  [`infra/DR_SCENARIO.md`](infra/DR_SCENARIO.md) for the scenario and
+  the reasoning behind the region pairing.
 - **Seasonal auto-scaling** — two scheduled capacity actions were
   written, then found to conflict with CodeDeploy's ASG-replacement
   behavior and disabled pending a Lambda-based redesign that can look
@@ -236,7 +234,7 @@ bought:
   bottleneck. A real production system with a stricter RPO would revisit
   this specific tradeoff, not apply it blindly.
 - **DR kept pilot-light and build-on-demand, not always-on** — the full
-  cross-region design exists (`DR_RUNBOOK.md`) but isn't running, because
+  cross-region design exists ([`infra/DR_SCENARIO.md`](infra/DR_SCENARIO.md)) but isn't running, because
   paying for a warm standby 24/7 isn't justified without a concrete
   reason to demo or actually fail over to it.
 - **AWS Cost Optimization Hub enabled** — ongoing, automated

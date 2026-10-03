@@ -18,9 +18,10 @@ Texas, so this is preparedness reasoning applied to region selection,
 not a claim that a specific AWS region failed.
 
 Design stays pilot-light (cheap, mostly idle) for the same reason
-everything else here is cost-conscious: see `SECURITY.md` and
-`EC2_MIGRATION_PLAN.md` v2b for the actual implementation (RDS
-read replica, DynamoDB Global Table, idle standby ASG, Route 53
-failover) and RTO/RPO targets. Still design-only, not built.
+everything else here is cost-conscious. The planned implementation is
+an RDS cross-region read replica, a DynamoDB Global Table, an idle
+standby ASG and Route 53 failover, targeting an RTO of ~10-20 min and an
+RPO of seconds to minutes (see `SECURITY.md` and the main README).
+Still design-only, not built.
 
 Sources: [EBSCO Research Starters](https://www.ebsco.com/research-starters/power-and-energy/2021-texas-power-crisis), [CHDS timeline](https://www.chds.us/c/timeline/2021-texas-power-crisis/)
