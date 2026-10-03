@@ -1,6 +1,34 @@
 # Deployment Evolution — from EKS to EC2 Blue/Green, for Real
 
-**→ [Infrastructure code (Terraform)](infra/)** · **→ [Live app](https://appointments.emmanuelfornah.com)**
+**→ [Infrastructure code (Terraform)](infra/)** · **→ [Architecture walkthrough](ARCHITECTURE.md)** · **→ [Live app](https://appointments.emmanuelfornah.com)**
+
+### Infrastructure
+
+![Full infrastructure: 3-tier VPC, ALB, Auto Scaling Group, RDS, DynamoDB, SSM](screenshots/architecture/ec2-full-infrastructure-architecture.webp)
+
+Users reach `appointments.emmanuelfornah.com` through Route 53 and an
+ACM certificate on the Application Load Balancer, which sits in the
+**public subnets**. The ALB forwards to Graviton (t4g) EC2 instances in
+an Auto Scaling Group in the **app subnets**, across 2 AZs. The
+instances read and write bookings in **RDS MySQL** (IAM database auth,
+encrypted) in the **data subnets**, and read salon announcements from
+**DynamoDB** (point-in-time recovery). Security groups chain internet →
+ALB → app tier → RDS, so no tier can be skipped. There is no SSH: admin
+access is through SSM Session Manager only. Outbound traffic from the
+app tier leaves through a NAT gateway. Phase 1 (CodeCommit → EKS,
+greyed out at the bottom) was built, verified and torn down.
+
+### Deployment pipeline
+
+![CI/CD pipeline and blue/green deployment](screenshots/architecture/ec2-bluegreen-pipeline-architecture.webp)
+
+Every push to GitHub runs CodePipeline: CodeBuild runs the unit tests,
+a second CodeBuild builds the ARM64 Docker image and pushes it to ECR
+(scan on push, immutable tags), then CodeDeploy rolls it out blue/green:
+**1.** create a new green Auto Scaling Group from the launch template
+and install the release, **2.** shift ALB traffic to green once it is
+healthy, **3.** drain the old blue group and delete it after a
+30-minute window, during which rollback is instant.
 
 **Live today at [appointments.emmanuelfornah.com](https://appointments.emmanuelfornah.com)**
 — a highly-available appointment scheduling platform, entirely
@@ -72,38 +100,8 @@ conversation, not this README).
 
 ## Architecture (current, EC2 phase)
 
-```mermaid
-flowchart LR
-    dev([Developer]) --> gh[GitHub]
-
-    subgraph pipeline [CodePipeline]
-        direction LR
-        src[Source<br/>CodeStar connection] --> test[Unit tests<br/>CodeBuild]
-        test --> build[ARM64 image build<br/>CodeBuild]
-        build --> deploy[CodeDeploy<br/>blue/green]
-    end
-
-    gh --> src
-    build -->|push image| ecr[(ECR)]
-    lt[Launch template] --> deploy
-
-    user([Visitor]) --> dns[Route 53<br/>+ ACM TLS] --> alb[ALB]
-
-    subgraph vpc [VPC: 2 AZs]
-        direction TB
-        alb -->|"2. shift traffic"| green[Green ASG, new<br/>EC2 t4g, AZ-a + AZ-b]
-        alb -.->|"3. drain, delete after 30 min"| blue[Blue ASG, old<br/>EC2 t4g, AZ-a + AZ-b]
-        green --> rds[(RDS MySQL<br/>IAM auth)]
-    end
-
-    deploy -->|"1. create and install"| green
-    ecr -.->|pull image| green
-    green --> ddb[(DynamoDB<br/>announcements)]
-```
-
-![EC2 blue/green pipeline architecture](screenshots/architecture/ec2-bluegreen-pipeline-architecture.webp)
-
-![Full infrastructure: 3-tier VPC, ALB, ASG, RDS, DynamoDB, SSM](screenshots/architecture/ec2-full-infrastructure-architecture.webp)
+Diagrams are at the [top of this README](#infrastructure); the step-by-step
+walkthrough is in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 | Layer | Implementation |
 |---|---|
