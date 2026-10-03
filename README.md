@@ -101,6 +101,8 @@ flowchart LR
     green --> ddb[(DynamoDB<br/>announcements)]
 ```
 
+![EC2 blue/green pipeline architecture](screenshots/architecture/ec2-bluegreen-pipeline-architecture.webp)
+
 | Layer | Implementation |
 |---|---|
 | Compute | EC2 (Graviton/t4g), 2 instances across 2 AZs; CodeDeploy owns the Auto Scaling Group after first deploy (see note below) |
