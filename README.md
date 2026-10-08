@@ -67,7 +67,7 @@ system outgrows (or never needed) its original compute choice.
 
 **Portfolio context:** this project concludes a chain that starts in
 [`aws-solutions-portfolio`](https://github.com/emmanuelfornah/aws-solutions-portfolio)
-(45+ AWS Cloud Institute coursework projects — the breadth this was
+(AWS Cloud Institute coursework projects — the breadth this was
 built from), continues in
 [`aws-compute-evolution`](https://github.com/emmanuelfornah/aws-compute-evolution)
 (the same EC2-vs-EKS tradeoff argued generally, across five compute
