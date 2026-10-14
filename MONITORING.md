@@ -245,7 +245,7 @@ Explorer can group spend by them (from the activation date forward).
 
 | # | Action | Est. saving / month | Tradeoff |
 |---|---|---|---|
-| 1 | **Remove the 7 interface endpoints**; AWS API traffic goes through the existing NAT gateway. Keep the free S3 gateway endpoint. | **~$100** (endpoints minus a few cents of NAT data) | AWS calls leave the VPC through NAT (still TLS, still IAM-scoped). Alternative: keep them in one AZ only for ~$51. |
+| 1 | **Done.** **Remove the 7 interface endpoints**; AWS API traffic goes through the existing NAT gateway. Keep the free S3 gateway endpoint and add a free DynamoDB one. | **~$100** (endpoints minus a few cents of NAT data) | AWS calls leave the VPC through NAT (still TLS, still IAM-scoped). Alternative: keep them in one AZ only for ~$51. |
 | 2 | **Turn off EC2 detailed monitoring** in the launch template. | $4.20 | 5-minute EC2 metrics instead of 1-minute. Nothing depends on them: every alarm reads ALB or RDS metrics. |
 | 3 | **1-year Compute Savings Plan** for the 2 always-on instances. | ~$7 (~30% of EC2) | A one-year commitment to that spend. |
 | 4 | **Replace the NAT gateway with a NAT instance** (t4g.nano). | ~$29 | One more instance to patch; worth it only after #1. |

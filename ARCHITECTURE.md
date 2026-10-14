@@ -33,10 +33,11 @@ is provisioned by the Terraform in [`infra/`](infra/).
   accepts traffic only from the tier in front of it, so no tier can be
   bypassed.
 - **Outbound:** the app tier reaches the internet through a NAT gateway
-  in the public subnets. AWS services are reached privately through VPC
-  endpoints: interface endpoints for ECR (API and Docker), CloudWatch
-  Logs, Secrets Manager, SSM, SSM Messages and EC2 Messages, plus an S3
-  gateway endpoint.
+  in the public subnets, which also carries AWS API calls (ECR,
+  CloudWatch Logs, Secrets Manager, SSM) over TLS. S3 and DynamoDB are
+  reached through free gateway endpoints. Interface endpoints were
+  removed for cost control on a portfolio project (see
+  [MONITORING.md §8](MONITORING.md)).
 - **No SSH:** admin access is through **SSM Session Manager** only, and
   IMDSv2 is enforced on every instance.
 - **Audit:** VPC Flow Logs capture all traffic (30-day retention).

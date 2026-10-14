@@ -7,8 +7,10 @@
 - No inbound SSH anywhere. Instance access is via SSM Session Manager
   (IAM + CloudTrail-logged), not key pairs or an open port 22.
 - VPC Flow Logs enabled, shipped to CloudWatch Logs.
-- Interface VPC endpoints for ECR/Logs/Secrets Manager/SSM so routine
-  operations don't depend on the NAT gateway or internet egress.
+- S3 and DynamoDB gateway endpoints keep that traffic inside AWS. Other
+  AWS API calls (ECR, Logs, Secrets Manager, SSM) leave through the NAT
+  gateway, still TLS and IAM-scoped. Interface endpoints were removed
+  for cost; re-adding them is the fix if NAT egress must be avoided.
 
 ## Identity & access
 - Every IAM policy is scoped to a specific resource ARN — no `*`

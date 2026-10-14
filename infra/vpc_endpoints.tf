@@ -1,54 +1,23 @@
-# Interface/gateway endpoints so app instances don't need the NAT
-# gateway for routine AWS API calls — reduces NAT data-processing cost
-# and, more importantly, means an image pull or Secrets Manager read
-# doesn't depend on internet egress at all.
-
-resource "aws_security_group" "vpc_endpoints" {
-  name        = "appointments-vpce-sg"
-  description = "Allow app tier to reach interface endpoints on 443"
-  vpc_id      = aws_vpc.main.id
-
-  ingress {
-    description     = "HTTPS from app instances"
-    from_port       = 443
-    to_port         = 443
-    protocol        = "tcp"
-    security_groups = [aws_security_group.app.id]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-locals {
-  interface_endpoints = [
-    "ecr.api",
-    "ecr.dkr",
-    "logs",
-    "secretsmanager",
-    "ssm",
-    "ssmmessages",
-    "ec2messages",
-  ]
-}
-
-resource "aws_vpc_endpoint" "interface" {
-  for_each            = toset(local.interface_endpoints)
-  vpc_id              = aws_vpc.main.id
-  service_name        = "com.amazonaws.${var.aws_region}.${each.value}"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = aws_subnet.private_app[*].id
-  security_group_ids  = [aws_security_group.vpc_endpoints.id]
-  private_dns_enabled = true
-}
+# Gateway endpoints only. They're free and keep S3 and DynamoDB traffic
+# off the NAT gateway, so those calls carry no NAT data-processing charge.
+#
+# The 7 interface endpoints (ecr.api, ecr.dkr, logs, secretsmanager, ssm,
+# ssmmessages, ec2messages) were removed for cost control on a portfolio
+# project: billed per AZ-hour in both AZs, they cost more than the NAT
+# gateway they were meant to save on. Those calls now go out through the
+# NAT (the private route table's 0.0.0.0/0 -> NAT route). See
+# MONITORING.md §8.
 
 resource "aws_vpc_endpoint" "s3" {
   vpc_id            = aws_vpc.main.id
   service_name      = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"
+  route_table_ids   = [aws_route_table.private.id]
+}
+
+resource "aws_vpc_endpoint" "dynamodb" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.aws_region}.dynamodb"
   vpc_endpoint_type = "Gateway"
   route_table_ids   = [aws_route_table.private.id]
 }

@@ -99,9 +99,9 @@ resource "aws_route_table_association" "public" {
 # portfolio app (one NAT GW ~$32/mo vs one per AZ ~$64/mo). It's a
 # single point of failure for *outbound* internet (ECR pulls, package
 # updates) only; inbound app traffic via the ALB is unaffected if this
-# AZ's NAT goes down. Add gateway VPC endpoints (S3) and interface
-# endpoints (ECR api/dkr, CloudWatch Logs, Secrets Manager) to remove
-# the NAT dependency for routine operation entirely — see
+# AZ's NAT goes down. S3 and DynamoDB use free gateway endpoints; other
+# AWS API calls (ECR, Logs, Secrets Manager, SSM) go through this NAT.
+# Interface endpoints were removed as ~3x the NAT's cost, see
 # `vpc_endpoints.tf`.
 resource "aws_eip" "nat" {
   domain = "vpc"
