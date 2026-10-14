@@ -146,3 +146,10 @@ infra/*.tfstate
 infra/*.tfstate.backup
 infra/*.tfvars
 infra/crash.log
+
+# Terraform (single-server/)
+single-server/.terraform/
+single-server/*.tfstate
+single-server/*.tfstate.backup
+single-server/*.tfvars
+single-server/crash.log

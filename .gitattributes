@@ -1,0 +1,2 @@
+# Rendered into EC2 user-data and run by bash on Linux: CRLF breaks it.
+single-server/templates/*.tpl text eol=lf
