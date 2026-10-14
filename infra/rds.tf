@@ -36,11 +36,15 @@ resource "aws_db_instance" "main" {
 
   iam_database_authentication_enabled = true
 
-  multi_az                  = var.db_multi_az
-  backup_retention_period   = 7
-  deletion_protection       = true
-  skip_final_snapshot       = false
-  final_snapshot_identifier = "scheduler-db-final"
+  multi_az                = var.db_multi_az
+  backup_retention_period = 7
+
+  # Cost control on a portfolio project: the app now runs on
+  # single-server/ and this stack is torn down. Protection off and no
+  # final snapshot (demo data only) so `terraform destroy` completes and
+  # leaves nothing billing. Turn both back on before re-applying for real.
+  deletion_protection = false
+  skip_final_snapshot = true
 
   enabled_cloudwatch_logs_exports = ["error", "general", "slowquery"]
 

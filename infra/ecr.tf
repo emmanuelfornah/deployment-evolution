@@ -1,5 +1,6 @@
 resource "aws_ecr_repository" "app" {
-  name = "containers-image-repository" # matches the name already in use
+  name         = "containers-image-repository" # matches the name already in use
+  force_delete = true                          # teardown deletes the images with the repo
   # IMMUTABLE means the buildspec can no longer push a reusable "latest"
   # tag — deploys must reference the commit-SHA tag instead. That's a
   # deliberate change, not just a stricter default: blue/green needs an

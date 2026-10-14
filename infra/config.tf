@@ -6,7 +6,8 @@
 # compliance" value for a few dollars a month.
 
 resource "aws_s3_bucket" "config" {
-  bucket = "appointments-config-${data.aws_caller_identity.current.account_id}"
+  bucket        = "appointments-config-${data.aws_caller_identity.current.account_id}"
+  force_destroy = true # Config snapshots only; lets teardown empty the versioned bucket
 }
 
 resource "aws_s3_bucket_public_access_block" "config" {
