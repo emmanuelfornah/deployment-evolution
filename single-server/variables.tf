@@ -40,5 +40,5 @@ variable "announcements_table" {
 variable "point_dns" {
   description = "false: the app is reachable only on the Elastic IP over HTTP, for checking before cutover. true: the domain's A record points at this instance (UPSERT over the ALB alias) and Caddy serves HTTPS."
   type        = bool
-  default     = false
+  default     = true
 }
