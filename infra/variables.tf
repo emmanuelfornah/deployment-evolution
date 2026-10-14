@@ -75,9 +75,9 @@ variable "db_instance_class" {
 }
 
 variable "db_multi_az" {
-  description = "RDS-level HA within the region: a synchronous standby in a second AZ with automatic failover. On, matching the live instance; it's what lets the database meet the 99.9% availability SLO (MONITORING.md). Cross-region DR is separate (DR_SCENARIO.md)."
+  description = "RDS-level HA within the region: a synchronous standby in a second AZ with automatic failover. Off for cost control on a portfolio project; set true to restore the standby the 99.9% availability SLO assumes (MONITORING.md). Cross-region DR is separate (DR_SCENARIO.md)."
   type        = bool
-  default     = true
+  default     = false
 }
 
 variable "health_check_path" {
